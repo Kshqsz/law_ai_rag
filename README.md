@@ -40,7 +40,7 @@ EMBEDDING_MODEL=text-embedding-v2
 
 ## 遇到的问题及解决方案
 
-### 问题 1: OpenAI 兼容层 Embedding 调用失败
+### 问题: OpenAI 兼容层 Embedding 调用失败
 
 **错误信息**: `InvalidRequestError: Value error, contents is neither str nor list of str`
 
@@ -69,10 +69,10 @@ EMBEDDING_MODEL=text-embedding-v2
 4. **上下文注入**: 这些段落以文本的形式放进 LLM。
 5. **生成回答**: LLM 根据 **用户问题 + 检索到的法律条文** 生成最终回答（相当于"开卷考试"）
 
-**💡 关于 Embedding 的两点补充：**
+**关于 Embedding 的两点补充：**
 
-1. Embedding 看起来有"理解能力"，但这只是表面现象——它实际上就是一个**较为精准的向量转换器**。
-2. Embedding 就像一个"翻译官"，把中文问题和法律条文都翻译成"向量语言"（高维数值向量）；然后由**向量数据库使用内部算法**找到最为相近的条文。真正的"理解"和"推理"是由 LLM 完成的。
+1. Embedding 看起来有理解能力，但这只是表面现象——它实际上就是一个**较为精准的向量转换器**。
+2. Embedding 就像一个干翻译的，把中文问题和法律条文都翻译成"向量语言"（高维数值向量）；用户输入问题后，由**向量数据库使用内部算法**找到最为相近的条文。然后让LLM在开卷考试的情况下回答问题。
 
 ---
 
