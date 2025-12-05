@@ -1,4 +1,5 @@
 # coding: utf-8
+import os
 from typing import List, Dict
 from collections import defaultdict
 
@@ -14,7 +15,14 @@ from langchain.callbacks.manager import Callbacks
 
 def get_cached_embedder() -> CacheBackedEmbeddings:
     fs = LocalFileStore("./.cache/embeddings")
-    underlying_embeddings = OpenAIEmbeddings()
+    base_url = os.getenv("OPENAI_BASE_URL")
+    # 阿里云 DashScope 的 embedding 模型
+    embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
+    
+    underlying_embeddings = OpenAIEmbeddings(
+        model=embedding_model,
+        base_url=base_url
+    )
 
     cached_embedder = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings, fs, namespace=underlying_embeddings.model
@@ -45,10 +53,19 @@ def clear_vectorstore(collection_name: str = "law") -> None:
 
 
 def get_model(
-        model: str = "gpt-3.5-turbo-0613",
+        model: str = None,
         streaming: bool = True,
         callbacks: Callbacks = None) -> ChatOpenAI:
-    model = ChatOpenAI(model=model, streaming=streaming, callbacks=callbacks)
+    # 从环境变量获取模型名称，默认使用 qwen-max
+    model_name = model or os.getenv("MODEL_NAME", "qwen-max")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    
+    model = ChatOpenAI(
+        model=model_name,
+        streaming=streaming,
+        callbacks=callbacks,
+        base_url=base_url
+    )
     return model
 
 
