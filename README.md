@@ -1,28 +1,31 @@
 <div align="center">
 
-#  项目修改记录（2025-12-05）
+# 项目修改记录（2025-12-05）
 
-**修改者**: Kshqsz  
-**修改日期**: 2025年12月5日  
+**修改者**: Kshqsz
+**修改日期**: 2025年12月5日
 **修改目的**: 将原项目从 OpenAI API 迁移到阿里云 DashScope（Qwen）API
 
 </div>
 
 ---
 
-## ✅ 主要修改内容
+## 主要修改内容
 
 ### 1. API 适配修改
+
 - **LLM 模型**: 从 `gpt-3.5-turbo` 改为 `qwen-max`（通过阿里云 DashScope OpenAI 兼容接口）
 - **Embedding 模型**: 自定义实现 `DashScopeEmbeddings` 类，使用阿里云原生 `text-embedding-v2` 模型
 
 ### 2. 修改的文件
-| 文件 | 修改内容 |
-|------|----------|
+
+| 文件                | 修改内容                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------- |
 | `law_ai/utils.py` | 新增 `DashScopeEmbeddings` 类，修改 `get_model()` 和 `get_embedding_model()` 函数 |
-| `.env` | 配置阿里云 DashScope API Key 和模型参数 |
+| `.env`            | 配置阿里云 DashScope API Key 和模型参数                                                 |
 
 ### 3. `.env` 配置示例
+
 ```env
 # LLM 配置
 OPENAI_API_KEY=sk-你的阿里云DashScope-API-Key
@@ -35,9 +38,10 @@ EMBEDDING_MODEL=text-embedding-v2
 
 ---
 
-## ⚠️ 遇到的问题及解决方案
+## 遇到的问题及解决方案
 
 ### 问题 1: OpenAI 兼容层 Embedding 调用失败
+
 **错误信息**: `InvalidRequestError: Value error, contents is neither str nor list of str`
 
 **原因**: 旧版 `langchain` (0.1.x) 使用的 `openai` 库 (0.28.x) 与阿里云 DashScope 的 OpenAI 兼容接口不完全兼容。
@@ -47,15 +51,33 @@ EMBEDDING_MODEL=text-embedding-v2
 ---
 
 ## 运行结果
+
 - 向量数据库初始化成功，共导入个法律条文片段
 - Web UI 运行正常
 - 法律问答功能正常
-![1764936501657](image/README/1764936501657.png)
+  ![1764936501657](image/README/1764936501657.png)
+
+---
+
+## 我对 RAG 的理解
+
+**RAG（检索增强生成）的核心流程：**
+
+1. **法律条文预处理**: 法律条文被提前拆分成小段，存储到向量数据库。
+2. **向量化**: Embedding 模型把这些段落以及用户的问题都转成向量。
+3. **语义检索**: 向量数据库根据"语义相似度"找到最相关的法律条文段落。（可选：重排序模型再对这些段落进行排序，挑最最相关的）
+4. **上下文注入**: 这些段落以文本的形式放进 LLM。
+5. **生成回答**: LLM 根据 **用户问题 + 检索到的法律条文** 生成最终回答（相当于"开卷考试"）
+
+**💡 关于 Embedding 的两点补充：**
+
+1. Embedding 看起来有"理解能力"，但这只是表面现象——它实际上就是一个**较为精准的向量转换器**。
+2. Embedding 就像一个"翻译官"，把中文问题和法律条文都翻译成"向量语言"（高维数值向量）；然后由**向量数据库使用内部算法**找到最为相近的条文。真正的"理解"和"推理"是由 LLM 完成的。
 
 ---
 
 <div align="center">
-  
+
 ![Python version](https://img.shields.io/badge/python-3.9+-blue)
 [![web ui](https://img.shields.io/badge/WebUI-Gradio-important)](https://www.gradio.app/)
 [![Twitter follow](https://img.shields.io/twitter/follow/gradio?style=social&label=follow)](https://twitter.com/billvsme)
@@ -63,15 +85,16 @@ EMBEDDING_MODEL=text-embedding-v2
 </div>
 
 法律AI助手
-=========
+==========
 
 法律AI助手，法律RAG，通过倒入全部200+本法律手册、网页搜索内容结合LLM回答你的问题，并且给出对应的法规和网站，基于langchain，openai，chroma，duckduckgo-search, Gradio
 
 ## Demo
+
 [https://law.vmaig.com/](https://law.vmaig.com/)
 
-**用户名**: username  
-**密码**:  password  
+**用户名**: username
+**密码**:  password
 
 ## 原理
 
@@ -79,6 +102,7 @@ EMBEDDING_MODEL=text-embedding-v2
 问答相关问题时，先通过相似度搜索向量数据，获取相关法律条文，然后通过DuckDuckGo互联网搜索相关网页，然后合并法律条文和网页内容，对问题进行回答。
 
 **初始化init**
+
 ```mermaid
 flowchart LR
     A[法律文件加载LawLoader] --> B[MarkdownHeaderTextSplitter]
@@ -90,6 +114,7 @@ flowchart LR
 ```
 
 **提问流程**
+
 ```mermaid
 flowchart LR
     A[提问] --> B[问题校验];
@@ -117,7 +142,6 @@ flowchart LR
     L --> M[callback流输出]
     end
 ```
-
 
 ## 初始化运行环境
 
@@ -162,6 +186,7 @@ python manager.py --shell
 ## 配置修改
 
 如果你想修改回答中的法律条数和网页条数，可以修改config.py
+
 - 法律条数: LAW_VS_SEARCH_K
 - 网页条数: WEB_VS_SEARCH_K
 - web ui地址: WEB_HOST
