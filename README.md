@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎉 项目修改记录（2025-12-05）
+#  项目修改记录（2025-12-05）
 
 **修改者**: Kshqsz  
 **修改日期**: 2025年12月5日  
@@ -44,26 +44,13 @@ EMBEDDING_MODEL=text-embedding-v2
 
 **解决方案**: 使用阿里云官方 `dashscope` SDK，自定义实现 `DashScopeEmbeddings` 类，彻底绕过兼容性问题。
 
-### 问题 2: pyenv 与虚拟环境冲突
-**现象**: `source venv311/bin/activate` 后，`python` 命令仍指向 pyenv 的版本。
-
-**原因**: pyenv 的 shims 路径优先级高于虚拟环境。
-
-**解决方案**: 移除 pyenv，直接使用 Homebrew 安装的 Python 3.11 创建虚拟环境。
-
-### 问题 3: 向量数据库需要重新初始化
-**注意**: 更换 Embedding 模型后，必须删除旧的向量数据库并重新初始化！
-```bash
-rm -rf chroma_db/ .cache/embeddings/
-python manager.py --init
-```
-
 ---
 
-## 🚀 运行结果
-- ✅ 向量数据库初始化成功，共导入 **21288** 个法律条文片段
-- ✅ Web UI 运行正常
-- ✅ 法律问答功能正常
+## 运行结果
+- 向量数据库初始化成功，共导入个法律条文片段
+- Web UI 运行正常
+- 法律问答功能正常
+![1764936501657](image/README/1764936501657.png)
 
 ---
 
