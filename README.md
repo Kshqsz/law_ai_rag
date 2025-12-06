@@ -1,16 +1,29 @@
 <div align="center">
 
-# 项目修改记录（2025-12-05）
+# 项目修改记录
 
 **修改者**: Kshqsz
-**修改日期**: 2025年12月5日
-**修改目的**: 将原项目从 OpenAI API 迁移到阿里云 DashScope（Qwen）API
 
 </div>
 
 ---
 
-## 主要修改内容
+## 📅 2025-12-06 更新
+
+### 1. 代码优化重构
+- 重构 `law_ai/utils.py` - 优化 DashScopeEmbeddings 实现
+- 重构 `law_ai/loader.py` - 改进文档加载逻辑
+- 重构 `law_ai/splitter.py` - 优化文本分割器
+
+### 2. 项目配置
+- 删除 GitHub Actions 自动部署配置（原作者的服务器配置）
+- 更新 `requirements.txt` 依赖
+
+---
+
+## 📅 2025-12-05 更新
+
+**修改目的**: 将原项目从 OpenAI API 迁移到阿里云 DashScope（Qwen）API
 
 ### 1. API 适配修改
 
