@@ -34,20 +34,6 @@ from .combine import combine_law_docs, combine_web_docs
 
 class LawStuffDocumentsChain(StuffDocumentsChain):
     def _get_inputs(self, docs: List[Document], **kwargs: Any) -> dict:
-        """Construct inputs from kwargs and docs.
-
-        Format and the join all the documents together into one input with name
-        `self.document_variable_name`. The pluck any additional variables
-        from **kwargs.
-
-        Args:
-            docs: List of documents to format and then join into single input
-            **kwargs: additional inputs to chain, will pluck any other required
-                arguments from here.
-
-        Returns:
-            dictionary of inputs to LLMChain
-        """
         # Join the documents together to put them in the prompt.
         law_book = defaultdict(list)
         law_web = defaultdict(list)

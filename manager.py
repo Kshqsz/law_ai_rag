@@ -38,7 +38,6 @@ def init_vectorstore() -> None:
     info = law_index(docs)
     pprint(info)
 
-
 async def run_shell() -> None:
     check_law_chain = get_check_law_chain(config)
 
