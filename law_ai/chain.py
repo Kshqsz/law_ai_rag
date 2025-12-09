@@ -18,7 +18,6 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.output_parsers import BooleanOutputParser
 from langchain.schema.runnable import RunnableMap
 from langchain.chains.base import Chain
-from langchain.utilities import DuckDuckGoSearchAPIWrapper
 from langchain.callbacks import AsyncIteratorCallbackHandler
 from langchain.output_parsers.openai_functions import JsonKeyOutputFunctionsParser
 from langchain.callbacks.manager import (
@@ -27,9 +26,10 @@ from langchain.callbacks.manager import (
 )
 
 from .utils import get_vectorstore, get_model
-from .retriever import LawWebRetiever, get_multi_query_law_retiever
+from .retriever import LawWebRetiever, ProxyDuckDuckGoSearch, get_multi_query_law_retiever
 from .prompt import LAW_PROMPT, CHECK_LAW_PROMPT, HYPO_QUESTION_PROMPT
 from .combine import combine_law_docs, combine_web_docs
+from .logger import chain_logger
 
 
 class LawStuffDocumentsChain(StuffDocumentsChain):
@@ -77,15 +77,21 @@ class LawQAChain(BaseRetrievalQA):
         run_manager: CallbackManagerForChainRun,
     ) -> List[Document]:
         """Get docs."""
+        chain_logger.info(f"📚 开始检索法律文献...")
         vs_docs = self.vs_retriever.get_relevant_documents(
             question, callbacks=run_manager.get_child()
         )
+        chain_logger.info(f"✓ 法律文献检索完成，找到 {len(vs_docs)} 条相关文档")
 
+        chain_logger.info(f"🌐 开始检索网页资源...")
         web_docs = self.web_retriever.get_relevant_documents(
             question, callbacks=run_manager.get_child()
         )
+        chain_logger.info(f"✓ 网页资源检索完成，找到 {len(web_docs)} 条相关资源")
 
-        return vs_docs + web_docs
+        total_docs = vs_docs + web_docs
+        chain_logger.info(f"📖 共检索到 {len(total_docs)} 条资料")
+        return total_docs
 
     async def _aget_docs(
         self,
@@ -94,15 +100,21 @@ class LawQAChain(BaseRetrievalQA):
         run_manager: AsyncCallbackManagerForChainRun,
     ) -> List[Document]:
         """Get docs."""
+        chain_logger.info(f"📚 开始检索法律文献...")
         vs_docs = await self.vs_retriever.aget_relevant_documents(
             question, callbacks=run_manager.get_child()
         )
+        chain_logger.info(f"✓ 法律文献检索完成，找到 {len(vs_docs)} 条相关文档")
 
+        chain_logger.info(f"🌐 开始检索网页资源...")
         web_docs = await self.web_retriever.aget_relevant_documents(
             question, callbacks=run_manager.get_child()
         )
+        chain_logger.info(f"✓ 网页资源检索完成，找到 {len(web_docs)} 条相关资源")
 
-        return vs_docs + web_docs
+        total_docs = vs_docs + web_docs
+        chain_logger.info(f"📖 共检索到 {len(total_docs)} 条资料")
+        return total_docs
 
     @property
     def _chain_type(self) -> str:
@@ -147,19 +159,67 @@ def get_check_law_chain(config: Any) -> Chain:
 
 
 def get_law_chain(config: Any, out_callback: AsyncIteratorCallbackHandler) -> Chain:
+    chain_logger.info("🔧 初始化法律 RAG Chain...")
+    
     law_vs = get_vectorstore(config.LAW_VS_COLLECTION_NAME)
     web_vs = get_vectorstore(config.WEB_VS_COLLECTION_NAME)
+    chain_logger.info("✓ 向量库加载完成")
 
     vs_retriever = law_vs.as_retriever(search_kwargs={"k": config.LAW_VS_SEARCH_K})
+    
+    # 使用代理配置
+    proxy = getattr(config, 'WEB_PROXY', None)
     web_retriever = LawWebRetiever(
         vectorstore=web_vs,
-        search=DuckDuckGoSearchAPIWrapper(),
+        search=ProxyDuckDuckGoSearch(proxy=proxy),
         num_search_results=config.WEB_VS_SEARCH_K
     )
+    chain_logger.info(f"✓ 检索器初始化完成 (代理: {proxy or '无'})")
 
     multi_query_retriver = get_multi_query_law_retiever(vs_retriever, get_model())
+    chain_logger.info("✓ 多查询检索器初始化完成")
 
     callbacks = [out_callback] if out_callback else []
+
+    def log_law_docs(x):
+        """记录法律文档检索结果"""
+        law_docs = x["law_docs"]
+        chain_logger.info(f"📚 向量库检索完成，找到 {len(law_docs)} 条法律文档:")
+        for i, doc in enumerate(law_docs, 1):
+            book = doc.metadata.get('book', '未知')
+            content_preview = doc.page_content[:80].replace('\n', ' ')
+            chain_logger.info(f"  📖 [{i}] 《{book}》: {content_preview}...")
+        return law_docs
+    
+    def log_web_docs(x):
+        """记录网页检索结果"""
+        web_docs = x["web_docs"]
+        if web_docs:
+            chain_logger.info(f"🌐 网页检索完成，找到 {len(web_docs)} 条网页资源")
+        return web_docs
+    
+    def log_prompt_and_call_llm(x):
+        """记录 prompt 并调用大模型"""
+        law_context = x["law_context"]
+        web_context = x["web_context"]
+        question = x["question"]
+        
+        chain_logger.info("=" * 60)
+        chain_logger.info("📝 发送给大模型的 Prompt:")
+        chain_logger.info(f"  用户问题: {question}")
+        chain_logger.info(f"  法律上下文 ({len(law_context)} 字符):")
+        # 只显示前 500 字符
+        preview = law_context[:500].replace('\n', '\n    ')
+        chain_logger.info(f"    {preview}...")
+        if web_context:
+            chain_logger.info(f"  网页上下文 ({len(web_context)} 字符)")
+        chain_logger.info("=" * 60)
+        chain_logger.info("🤖 调用大模型生成答案...")
+        
+        # 格式化 prompt 并调用模型
+        prompt = LAW_PROMPT
+        answer_chain = prompt | get_model(callbacks=callbacks) | StrOutputParser()
+        return answer_chain.invoke(x)
 
     chain = (
         RunnableMap(
@@ -170,26 +230,19 @@ def get_law_chain(config: Any, out_callback: AsyncIteratorCallbackHandler) -> Ch
         )
         | RunnableMap(
             {
-                "law_docs": lambda x: x["law_docs"],
-                "web_docs": lambda x: x["web_docs"],
+                "law_docs": log_law_docs,
+                "web_docs": log_web_docs,
                 "law_context": lambda x: combine_law_docs(x["law_docs"]),
                 "web_context": lambda x: combine_web_docs(x["web_docs"]),
                 "question": lambda x: x["question"]}
-        )
-        | RunnableMap({
-                "law_docs": lambda x: x["law_docs"],
-                "web_docs": lambda x: x["web_docs"],
-                "law_context": lambda x: x["law_context"],
-                "web_context": lambda x: x["web_context"],
-                "prompt": LAW_PROMPT
-            }
         )
         | RunnableMap({
             "law_docs": lambda x: x["law_docs"],
             "web_docs": lambda x: x["web_docs"],
             "law_context": lambda x: x["law_context"],
             "web_context": lambda x: x["web_context"],
-            "answer": itemgetter("prompt") | get_model(callbacks=callbacks) | StrOutputParser()
+            "question": lambda x: x["question"],
+            "answer": log_prompt_and_call_llm
         })
     )
 

@@ -6,6 +6,7 @@ from pprint import pprint
 
 from dotenv import load_dotenv
 from law_ai.callback import OutCallbackHandler
+from law_ai.logger import app_logger
 
 from law_ai.loader import LawLoader
 from law_ai.splitter import LawSplitter
@@ -26,6 +27,7 @@ load_dotenv()
 
 
 def init_vectorstore() -> None:
+    app_logger.info("🚀 开始初始化向量存储库...")
     record_manager = get_record_manager("law")
     record_manager.create_schema()
 
@@ -37,8 +39,10 @@ def init_vectorstore() -> None:
     docs = LawLoader(config.LAW_BOOK_PATH).load_and_split(text_splitter=text_splitter)
     info = law_index(docs)
     pprint(info)
+    app_logger.info("✅ 向量存储库初始化完成！")
 
 async def run_shell() -> None:
+    app_logger.info("🎯 启动 Shell 模式...")
     check_law_chain = get_check_law_chain(config)
 
     out_callback = OutCallbackHandler()
@@ -47,13 +51,18 @@ async def run_shell() -> None:
     while True:
         question = input("\n用户:")
         if question.strip() == "stop":
+            app_logger.info("👋 退出程序")
             break
+        
+        app_logger.info(f"❓ 用户提问: {question}")
         print("\n法律小助手:", end="")
         is_law = check_law_chain.invoke({"question": question})
         if not is_law:
             print("不好意思，我是法律AI助手，请提问和法律有关的问题。")
+            app_logger.warning("⚠️  问题不属于法律范畴")
             continue
 
+        app_logger.info("⏳ 调用大模型生成答案...")
         task = asyncio.create_task(
             chain.ainvoke({"question": question}))
         async for new_token in out_callback.aiter():
@@ -61,6 +70,7 @@ async def run_shell() -> None:
 
         res = await task
         print(res["law_context"] + "\n" + res["web_context"])
+        app_logger.info("✅ 回答完成")
 
         out_callback.done.clear()
 
@@ -68,17 +78,21 @@ async def run_shell() -> None:
 def run_web() -> None:
     import gradio as gr
 
+    app_logger.info("🎯 启动 Web 模式...")
     check_law_chain = get_check_law_chain(config)
     chain = get_law_chain(config, out_callback=None)
 
     async def chat(message, history):
+        app_logger.info(f"❓ 用户提问: {message}")
         out_callback = OutCallbackHandler()
 
         is_law = check_law_chain.invoke({"question": message})
         if not is_law:
+            app_logger.warning("⚠️  问题不属于法律范畴")
             yield "不好意思，我是法律AI助手，请提问和法律有关的问题。"
             return
 
+        app_logger.info("⏳ 调用大模型生成答案...")
         task = asyncio.create_task(
             chain.ainvoke({"question": message}, config={"callbacks": [out_callback]}))
 
@@ -96,11 +110,14 @@ def run_web() -> None:
         for new_token in ["\n\n", res["law_context"], "\n", res["web_context"]]:
             response += new_token
             yield response
+        
+        app_logger.info("✅ 回答完成")
 
     demo = gr.ChatInterface(
         fn=chat, examples=["故意杀了一个人，会判几年？", "杀人自首会减刑吗？"], title="法律AI小助手")
 
     demo.queue()
+    app_logger.info(f"🌐 Web 服务启动: http://{config.WEB_HOST}:{config.WEB_PORT}")
     demo.launch(
         server_name=config.WEB_HOST, server_port=config.WEB_PORT,
         auth=(config.WEB_USERNAME, config.WEB_PASSWORD),

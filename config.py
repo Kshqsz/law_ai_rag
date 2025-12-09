@@ -10,6 +10,9 @@ class Config:
 
     WEB_VS_COLLECTION_NAME = "web" # 网络数据向量数据库集合名称(注意此处未使用网络向量数据库)
     WEB_VS_SEARCH_K = 2 # 检索后最多返回2条相关内容(实际上这边是直接调用DuckDuckGo搜索, 未存入ChromaDB)
+    
+    # 代理配置 (用于 DuckDuckGo 网页搜索，设置为 None 则不使用代理)
+    WEB_PROXY = "http://127.0.0.1:7890"
 
     WEB_HOST = "0.0.0.0" # Gradio Web 服务监听所有网络接口（可被局域网访问）
     WEB_PORT = 7860 # Web UI 使用 7860 端口（Gradio 默认端口）
