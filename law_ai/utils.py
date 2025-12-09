@@ -53,7 +53,7 @@ def get_embedding_model() -> DashScopeEmbeddings:
 
 
 def get_cached_embedder() -> CacheBackedEmbeddings:
-    fs = LocalFileStore("./.cached/embeddings")
+    fs = LocalFileStore("./.cache/embeddings")
     underlying_embeddings = get_embedding_model()
 
     cached_embedder = CacheBackedEmbeddings.from_bytes_store(
@@ -121,10 +121,10 @@ def law_index(docs: List[Document], show_progress: bool = True) -> Dict:
             # cleanup="full"
             source_id_key="source"
         )
-        for k, v in result.item():
+        for k, v in result.items():
             info[k] += v
         if pbar:
-            pbar.update(len(docs))
+            pbar.update(len(batch))
     if pbar:
         pbar.close()
     return dict(info)
