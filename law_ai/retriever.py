@@ -1,4 +1,50 @@
 # coding: utf-8
+"""
+法律文档检索模块（包括向量检索和网页搜索）
+
+功能说明：
+- ProxyDuckDuckGoSearch: 支持代理的 DuckDuckGo 搜索工具
+  通过 html 和 lite 两个后端进行网页搜索
+  支持自定义代理和超时时间
+  自动添加延迟以避免触发 API 限速
+  
+- LawWebRetiever: 网页检索器（继承 BaseRetriever）
+  使用 DuckDuckGo 搜索网页结果
+  自动对搜索结果进行文本分割
+
+使用示例：
+    from law_ai.retriever import ProxyDuckDuckGoSearch, LawWebRetiever
+    from law_ai.utils import get_vectorstore
+    
+    # 示例 1: 直接使用 ProxyDuckDuckGoSearch
+    search = ProxyDuckDuckGoSearch(proxy="http://127.0.0.1:7890")
+    results = search.results("中国民法典 合同", max_results=3)
+    
+    print(f"找到 {len(results)} 条结果：")
+    for i, result in enumerate(results, 1):
+        print(f"{i}. 标题: {result['title']}")
+        print(f"   链接: {result['link']}")
+        print(f"   摘要: {result['snippet'][:100]}...")
+    
+    # 输出示例:
+    # 找到 3 条结果：
+    # 1. 标题: 《中华人民共和国民法典》第三编 合同
+    #    链接: https://www.spp.gov.cn/...
+    #    摘要: 第四百六十三条 本编调整因合同产生的民事关系...
+    
+    # 示例 2: 使用 LawWebRetiever 进行检索
+    from langchain.callbacks.manager import CallbackManagerForRetrieverRun
+    
+    vectorstore = get_vectorstore("web")
+    retriever = LawWebRetiever(
+        vectorstore=vectorstore,
+        search=search,
+        num_search_results=2
+    )
+    
+    # 获取相关文档
+    # docs = retriever.get_relevant_documents("合同的违约责任如何处理？")
+"""
 import os
 from typing import List, Optional
 

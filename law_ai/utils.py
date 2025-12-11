@@ -1,4 +1,80 @@
 # coding: utf-8
+"""
+工具模块：模型、向量库和数据处理
+
+功能说明：
+- DashScopeEmbeddings: 自定义的文本向量化模型（继承 Embeddings）
+  使用阿里云 DashScope 的 text-embedding-v2 模型
+  支持批量文本向量化（最多 25 条/批）
+  支持单条文本向量化
+  
+- get_embedding_model(): 获取 Embedding 模型实例
+  
+- get_cached_embedder(): 获取带缓存的 Embedding 模型
+  缓存存储在 .cache/embeddings 目录
+  
+- get_record_manager(namespace): 获取向量库记录管理器
+  基于 SQLite 数据库存储记录
+  
+- get_vectorstore(collection_name): 获取 Chroma 向量库实例
+  默认持久化存储在 ./chroma_db
+  
+- clear_vectorstore(collection_name): 清空指定集合的所有数据
+  
+- get_model(model, streaming, callbacks): 获取 LLM 模型（ChatOpenAI）
+  默认使用 qwen-plus 模型
+  通过 DashScope OpenAI 兼容接口调用
+  
+- law_index(docs, show_progress): 将文档导入向量库
+  自动处理重复和更新
+
+使用示例：
+    from law_ai.utils import (
+        get_embedding_model, 
+        get_vectorstore, 
+        get_model,
+        law_index
+    )
+    from law_ai.loader import LawLoader
+    from law_ai.splitter import LawSplitter
+    
+    # 示例 1: 获取模型
+    embedding_model = get_embedding_model()
+    vectors = embedding_model.embed_documents(["民法典", "刑法"])
+    print(f"向量维度: {len(vectors[0])}")  # 输出: 向量维度: 1536
+    
+    # 示例 2: 获取向量库
+    vectorstore = get_vectorstore("law")
+    # vectorstore 可用于相似度搜索
+    
+    # 示例 3: 初始化法律数据库（完整流程）
+    # 1. 加载文档
+    loader = LawLoader("./Law-Book")
+    documents = loader.load()
+    print(f"加载了 {len(documents)} 个文档")
+    
+    # 2. 分割文档
+    splitter = LawSplitter(chunk_size=1000, chunk_overlap=100)
+    split_docs = splitter.split_documents(documents)
+    print(f"分割后共 {len(split_docs)} 个文本块")
+    
+    # 3. 导入向量库
+    result = law_index(split_docs, show_progress=True)
+    print(f"导入结果: {result}")
+    
+    # 示例 4: 获取 LLM 模型
+    from langchain.callbacks import StreamingStdOutCallbackHandler
+    
+    llm = get_model(
+        model="qwen-max",
+        streaming=True,
+        callbacks=[StreamingStdOutCallbackHandler()]
+    )
+    
+    # 使用 LLM
+    response = llm.invoke("什么是民法典？")
+    print(response.content)
+"""
 import os
 from typing import List, Dict
 from collections import defaultdict
@@ -13,7 +89,6 @@ from langchain.vectorstores import Chroma
 from langchain.indexes._api import _batch
 from langchain.chat_models import ChatOpenAI
 from langchain.callbacks.manager import Callbacks
-
 
 class DashScopeEmbeddings(Embeddings):
     """阿里云 DashScope Embedding 模型"""
@@ -51,7 +126,6 @@ def get_embedding_model() -> DashScopeEmbeddings:
     """获取 Embedding 模型，使用 DashScope 原生 API"""
     return DashScopeEmbeddings()
 
-
 def get_cached_embedder() -> CacheBackedEmbeddings:
     fs = LocalFileStore("./.cache/embeddings")
     underlying_embeddings = get_embedding_model()
@@ -66,7 +140,6 @@ def get_record_manager(namespace: str = "law") -> SQLRecordManager:
         f"chroma/{namespace}", db_url="sqlite:///law_record_manager_cache.sql"
     )
 
-
 def get_vectorstore(collection_name: str = "law") -> Chroma:
     vectorstore = Chroma(
         persist_directory="./chroma_db",
@@ -75,13 +148,11 @@ def get_vectorstore(collection_name: str = "law") -> Chroma:
     )
     return vectorstore
 
-
 def clear_vectorstore(collection_name: str = "law") -> None:
     record_manager = get_record_manager(collection_name)
     vectorstore = get_vectorstore(collection_name)
 
     index([], record_manager, vectorstore, cleanup="full", source_id_key="source")
-
 
 def get_model(
         model: str = None,

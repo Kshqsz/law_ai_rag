@@ -1,4 +1,75 @@
 # coding: utf-8
+"""
+RAG 链式处理模块：构建完整的检索增强生成(RAG)管道
+
+功能说明：
+- LawStuffDocumentsChain: 自定义的文档填充链（继承 StuffDocumentsChain）
+  将检索到的法律文档和网页内容格式化为字符串
+  按照书籍和来源分组组织内容
+  
+- LawQAChain: 法律问答链（继承 BaseRetrievalQA）
+  同时从向量库和网页进行检索
+  合并两种来源的文档
+  生成最终的法律问答结果
+  
+- get_check_law_chain(config): 创建法律相关性检查链
+  判断问题是否与法律相关
+  
+- get_law_chain(config, out_callback): 创建完整的法律 RAG 链
+  初始化向量库、检索器、模型
+  支持异步流式输出
+  添加详细的日志记录
+
+使用示例：
+    from law_ai.chain import get_law_chain, get_check_law_chain
+    from law_ai.callback import OutCallbackHandler
+    import asyncio
+    
+    # 创建配置对象（假设从 config.py 导入）
+    from config import Config
+    config = Config()
+    
+    # 示例 1: 检查问题是否与法律相关
+    check_chain = get_check_law_chain(config)
+    is_law_related = check_chain.invoke({"question": "什么是民法典？"})
+    print(f"与法律相关: {is_law_related}")  # 输出: 与法律相关: True
+    
+    # 示例 2: 使用完整的 RAG 链进行法律问答
+    callback = OutCallbackHandler()
+    chain = get_law_chain(config, callback)
+    
+    # 同步调用
+    result = chain.invoke({
+        "query": "合同的违约责任如何处理？"
+    })
+    print(f"答案: {result['output_text']}")
+    
+    # 异步调用（支持流式输出）
+    async def ask_law_question(question: str):
+        callback = OutCallbackHandler()
+        chain = get_law_chain(config, callback)
+        
+        result = await chain.ainvoke({
+            "query": question
+        })
+        return result
+    
+    # 运行异步调用
+    # result = asyncio.run(ask_law_question("民法典中什么是合同？"))
+    
+    # 日志输出示例：
+    # [INFO] [Chain] 🔧 初始化法律 RAG Chain...
+    # [INFO] [Chain] ✓ 向量库加载完成
+    # [INFO] [Chain] ✓ 检索器初始化完成 (代理: http://127.0.0.1:7890)
+    # [INFO] [Chain] ✓ 多查询检索器初始化完成
+    # [INFO] [Chain] 📚 开始检索法律文献...
+    # [INFO] [Retriever] 🔍 开始向量检索...
+    # [INFO] [Retriever] ✓ 向量检索完成，找到 3 条法律文档
+    # [INFO] [Chain] 🌐 开始检索网页资源...
+    # [INFO] [Retriever] 🔍 开始网页搜索...
+    # [INFO] [Retriever] ✓ 网页搜索成功
+    # [INFO] [Chain] 📖 共检索到 4 条资料
+"""
 from typing import Any, Optional, List
 from collections import defaultdict
 from operator import itemgetter
